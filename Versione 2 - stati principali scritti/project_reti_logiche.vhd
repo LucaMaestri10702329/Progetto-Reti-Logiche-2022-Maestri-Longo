@@ -178,7 +178,7 @@ type state_type is (reset, start, convulution, store_data, read_word, store_word
                         next_state <= shift_new_word;
            -- shifto la word in modo da poterne caricare altri due valore
            when shift_new_word =>
-                        new_word <= std_logic_vector(unsigned(new_word) sll 1);
+                        new_word <= std_logic_vector(unsigned(new_word) sll 2);
                         next_state <=  check_conter_convulution;
            -- controllo se devo salvare la parola o riprendere il giro
            when check_conter_convulution =>
@@ -200,7 +200,7 @@ type state_type is (reset, start, convulution, store_data, read_word, store_word
                             number_word  <= number_word  -1;
                         end if;
                         o_data <= std_logic_vector(RESIZE(unsigned(new_word), 8));      
-                        
+                        o_address <= std_logic_vector(to_unsigned(to_integer(unsigned(input_address))+1,16));
             end case;
     end process;
 
