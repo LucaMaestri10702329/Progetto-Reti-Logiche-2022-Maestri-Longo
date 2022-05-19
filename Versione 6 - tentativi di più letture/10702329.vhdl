@@ -60,7 +60,8 @@ type state_type is (reset,
 	
 	
 	signal wordBitCounter            : integer range 7 downto 0;
-	signal input_address             : std_logic_vector(15 downto 0);
+	signal input_address             : std_logic_vector(15 downto 0); -- sarebbe output address
+	signal input2_address             : std_logic_vector(15 downto 0); -- sarebbe input address
 	signal reg                       : std_logic ;
 	signal p1k                       : std_logic ;
 	signal p2k                       : std_logic;
@@ -68,7 +69,7 @@ type state_type is (reset,
 		signal word2: std_logic_vector(7 downto 0);
 		signal word: std_logic_vector(7 downto 0);
 
-	signal number_word               : std_logic_vector (7 downto 0);
+	signal number_word               : integer range 255 downto 0;
 	signal number_convulution        : integer range 7 downto 0;
 	signal new_word                  : std_logic_vector(7 downto 0);
 	signal counter_convulution       : integer range 8 downto 0;
@@ -91,37 +92,44 @@ type state_type is (reset,
                                 o_done       <= '0';
                                 o_address    <= "0000000000000000";
                                 o_data       <= "00000000";
-                                number_word       <= "00000000";
+                                number_word       <= 0;
                                 input_address <="0000001111100111";
                                 number_word_read<=00;
                                 counter_convulution<=00000000;
                                 current_state <= idling;
                                 current_state_mst <= state1;
+                                input2_address <= "0000000000000001";
                 when idling=>
                                current_state <= start;
               
                 when start =>
                     IF i_start = '1' THEN
-                              o_en       <= '1';
+                              o_en <= '1';
                               current_state <= read_word;
                     end if;
                               
                 when read_word => 
-                              number_word <= i_data;
+                              number_word <= to_integer(unsigned(i_data));
                               current_state <= read_word_processing;
-                              o_address<= "0000000000000001";
+                              o_address<= input2_address;
+                              o_en <= '0';
+                              o_we <= '0';
     
                 when read_word_processing =>
+                              input2_address <= std_logic_vector(to_unsigned(to_integer(unsigned(input2_address))+1,16));
+                              o_address<= input2_address;
                               current_state <= store_word;
-                              
+                              o_en <= '1';
+                              o_we <= '0';
                 when store_word =>
+                               
                              number_convulution <= 7;
                              current_state <= compare;
                              
                 when compare =>
                                word <= i_data;
-                               o_we         <= '1';
-    
+                               o_we <= '0';
+                               o_en <= '0'; 
                              --if number_word = 0 then
                                -- next_state <= finalize;
                              --else 
@@ -216,7 +224,6 @@ type state_type is (reset,
                                         word2(0) <= p2k;   
                                         current_state <= store_new_word ;
                                  when others=>
-                                    
                              end case;
                                 
                             
@@ -225,19 +232,33 @@ type state_type is (reset,
                             o_address <= std_logic_vector(to_unsigned(to_integer(unsigned(input_address))+1,16));
                             input_address <= std_logic_vector(to_unsigned(to_integer(unsigned(input_address))+1,16));
                             current_state <= wait_confirm;
+                            o_en <= '1';
+                            o_we <= '1';
+                            
                         when wait_confirm =>  
                             current_state <= wait_confirm2;
+                            
                         when  wait_confirm2=>
+                        
                             current_state <= write;
                         when write=>
+                        
                                 o_data <= std_logic_vector(RESIZE(unsigned(word2), 8));      
                                 o_address <= std_logic_vector(to_unsigned(to_integer(unsigned(input_address))+1,16));
                                 input_address <= std_logic_vector(to_unsigned(to_integer(unsigned(input_address))+1,16));
                                 current_state <= finalize;
+                                number_word <= number_word -1;
+                                o_en <= '1';
+                                o_we <= '1';
+                                
                         when finalize =>
                             if(i_start = '1')
                                 then
-                                  o_done <= '1';
+                                    if number_word = 0 then
+                                        o_done <= '1';
+                                    else 
+                                        current_state <= read_word_processing;
+                                    end if;
                                 else
                                   o_done <= '0';
                                   current_state <= reset;
